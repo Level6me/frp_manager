@@ -73,8 +73,28 @@ body {{
     top:0;
     z-index:100;
     border-bottom:1px solid var(--apple-separator);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }}
 .header h1 {{ font-size:28px; font-weight:700; letter-spacing:0.004em; }}
+.refresh-btn {{
+    background:var(--apple-light-gray);
+    border:none;
+    width:36px;
+    height:36px;
+    border-radius:10px;
+    font-size:18px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:all 0.2s ease;
+}}
+.refresh-btn:hover {{ background:#E5E5EA; }}
+.refresh-btn:active {{ transform:scale(0.92); }}
+.refresh-btn.spinning {{ animation:spin 1s linear infinite; }}
+@keyframes spin {{ 100% {{ transform:rotate(360deg); }} }}
 
 /* Cards */
 .card {{
@@ -280,22 +300,28 @@ body {{
     gap:4px;
 }}
 .add-btn:active {{ transform:scale(0.96); }}
+
+/* Loading */
+.loading {{ opacity:0.5; pointer-events:none; transition:opacity 0.3s; }}
 </style></head>
 <body>
-<div class="header"><h1>FRP Manager</h1></div>
+<div class="header">
+<h1>FRP Manager</h1>
+<button class="refresh-btn" id="refreshBtn" onclick="refreshAll()" title="刷新">🔄</button>
+</div>
 <div class="container">
 
-<div class="card">
+<div class="card" id="statusCard">
 <div class="card-header"><span class="card-title">服务状态</span></div>
 <div class="status-section">
-<div class="status-badge {sc}"><span>{icon}</span><span>{st}</span></div>
-<div class="btn-group">
+<div class="status-badge {sc}" id="statusBadge"><span>{icon}</span><span id="statusText">{st}</span></div>
+<div class="btn-group" id="btnGroup">
 <form method="post" action="/ctrl" style="display:inline">{btn}</form>
 </div>
 </div>
 </div>
 
-<div class="card">
+<div class="card" id="proxyCard">
 <div class="card-header">
 <span class="card-title">转发配置</span>
 <button class="add-btn" onclick="addProxy()">➕ 添加</button>
@@ -320,9 +346,9 @@ body {{
 </div>
 </div>
 
-<div class="card">
+<div class="card" id="logsCard">
 <div class="card-header"><span class="card-title">运行日志</span></div>
-<div class="logs"><pre>{logs}</pre></div>
+<div class="logs"><pre id="logsContent">{logs}</pre></div>
 </div>
 
 </div>
@@ -357,6 +383,96 @@ body {{
 
 <script>
 const proxies = {proxies_json};
+let refreshInterval = null;
+
+// 页面加载完成后开始自动刷新
+document.addEventListener('DOMContentLoaded', function() {{
+    // 每 5 秒自动刷新状态和日志
+    startAutoRefresh();
+}});
+
+function startAutoRefresh() {{
+    refreshInterval = setInterval(() => {{
+        refreshStatus();
+        refreshLogs();
+    }}, 5000);
+}}
+
+function stopAutoRefresh() {{
+    if(refreshInterval) {{
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+    }}
+}}
+
+function refreshAll() {{
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('spinning');
+    
+    refreshStatus();
+    refreshLogs();
+    refreshProxies();
+    
+    setTimeout(() => {{
+        btn.classList.remove('spinning');
+        showToast('已刷新');
+    }}, 1000);
+}}
+
+function refreshStatus() {{
+    fetch('/api/status')
+        .then(r => r.json())
+        .then(d => {{
+            const badge = document.getElementById('statusBadge');
+            const text = document.getElementById('statusText');
+            const btnGroup = document.getElementById('btnGroup');
+            
+            if(d.running) {{
+                badge.className = 'status-badge running';
+                badge.innerHTML = '<span>🟢</span><span>运行中</span>';
+                btnGroup.innerHTML = '<form method="post" action="/ctrl" style="display:inline"><button type="submit" name="a" value="stop" class="btn btn-danger">停止</button><button type="submit" name="a" value="restart" class="btn btn-secondary">重启</button></form>';
+            }} else {{
+                badge.className = 'status-badge stopped';
+                badge.innerHTML = '<span>⚪️</span><span>已停止</span>';
+                btnGroup.innerHTML = '<form method="post" action="/ctrl" style="display:inline"><button type="submit" name="a" value="start" class="btn btn-primary">启动</button></form>';
+            }}
+        }})
+        .catch(e => console.error('Refresh status error:', e));
+}}
+
+function refreshLogs() {{
+    fetch('/api/logs')
+        .then(r => r.json())
+        .then(d => {{
+            document.getElementById('logsContent').textContent = d.logs;
+        }})
+        .catch(e => console.error('Refresh logs error:', e));
+}}
+
+function refreshProxies() {{
+    fetch('/api/proxies')
+        .then(r => r.json())
+        .then(d => {{
+            const list = document.getElementById('proxyList');
+            if(d.proxies.length === 0) {{
+                list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无转发配置</div></div>';
+            }} else {{
+                list.innerHTML = d.proxies.map((p, i) => `
+<div class="proxy-item" id="proxy-${{i}}">
+<div class="proxy-icon">📡</div>
+<div class="proxy-info">
+<span class="proxy-name">${p.name}</span>
+<span class="proxy-detail">${p.localIP}:${p.localPort}<span class="arrow">→</span>${p.remotePort}</span>
+</div>
+<div class="proxy-type">${p.type.toUpperCase()}</div>
+<div class="proxy-actions">
+<button class="btn-icon" onclick="editProxy(${i})">✏️</button>
+<button class="btn-icon btn-delete" onclick="deleteProxy(${i})">🗑️</button>
+</div></div>`.join(''));
+            }}
+        }})
+        .catch(e => console.error('Refresh proxies error:', e));
+}}
 
 function editProxy(idx) {{
     const p = proxies[idx];
@@ -433,6 +549,22 @@ document.getElementById('proxyModal').addEventListener('click', function(e) {{
 </script>
 </body></html>"""
     return html
+
+@app.route("/api/status")
+def api_status():
+    r = subprocess.run(["sudo", "systemctl", "is-active", "frpc"], capture_output=True, text=True)
+    running = r.stdout.strip() == "active"
+    return jsonify({"running": running})
+
+@app.route("/api/logs")
+def api_logs():
+    logs = subprocess.run(["journalctl", "-u", "frpc", "-n", "50", "--no-pager"], capture_output=True, text=True).stdout[:3000]
+    return jsonify({"logs": logs})
+
+@app.route("/api/proxies")
+def api_proxies():
+    proxies = read_proxies()
+    return jsonify({"proxies": proxies})
 
 def read_config():
     try:
