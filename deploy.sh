@@ -31,7 +31,7 @@ echo "📥 克隆代码..."
 if [ -d ".git" ]; then
     git pull
 else
-    git clone http://gogs.abab.pw/claw/frp-web-manager.git .
+    git clone http://gogs.abab.pw/claw/frp_manager.git .
 fi
 
 echo "⚙️ 配置服务..."

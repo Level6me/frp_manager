@@ -23,7 +23,7 @@
 cd /Users/jiang/.openclaw/workspace/frp-web-manager
 
 # 如果还没添加远程仓库
-git remote add origin http://gogs.abab.pw/claw/frp-web-manager.git
+git remote add origin http://gogs.abab.pw/claw/frp_manager.git
 
 # 推送代码
 git push -u origin main
@@ -45,7 +45,7 @@ git config --global credential.helper store
 
 # 方法 2: 使用 SSH（推荐）
 # 在 Gogs 设置中添加 SSH 公钥，然后：
-git remote set-url origin git@gogs.abab.pw:claw/frp-web-manager.git
+git remote set-url origin git@gogs.abab.pw:claw/frp_manager.git
 ```
 
 ---
@@ -57,7 +57,7 @@ git remote set-url origin git@gogs.abab.pw:claw/frp-web-manager.git
 ```bash
 # 在目标服务器上执行
 cd /opt
-sudo git clone http://gogs.abab.pw/claw/frp-web-manager.git
+sudo git clone http://gogs.abab.pw/claw/frp_manager.git
 cd frp-web-manager
 sudo chmod +x deploy.sh
 sudo ./deploy.sh
@@ -73,7 +73,7 @@ pip3 install flask
 
 # 2. 克隆代码
 cd /opt
-sudo git clone http://gogs.abab.pw/claw/frp-web-manager.git
+sudo git clone http://gogs.abab.pw/claw/frp_manager.git
 cd frp-web-manager
 
 # 3. 配置 FRP
@@ -184,7 +184,7 @@ cat ~/.ssh/id_ed25519.pub
 # 在 Gogs 设置 → SSH Keys 中添加公钥
 
 # 修改远程仓库 URL
-git remote set-url origin git@gogs.abab.pw:claw/frp-web-manager.git
+git remote set-url origin git@gogs.abab.pw:claw/frp_manager.git
 ```
 
 ### 3. 保护敏感信息

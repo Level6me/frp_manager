@@ -19,7 +19,7 @@
 
 ```bash
 cd /Users/jiang/.openclaw/workspace/frp-web-manager
-git remote add origin http://gogs.abab.pw/claw/frp-web-manager.git
+git remote add origin http://gogs.abab.pw/claw/frp_manager.git
 git push -u origin main
 ```
 
@@ -54,7 +54,7 @@ git push
 ```bash
 # 在目标服务器上
 cd /opt
-sudo git clone http://gogs.abab.pw/claw/frp-web-manager.git
+sudo git clone http://gogs.abab.pw/claw/frp_manager.git
 cd frp-web-manager
 sudo ./deploy.sh
 ```
