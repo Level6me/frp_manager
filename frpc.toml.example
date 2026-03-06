@@ -1,0 +1,27 @@
+serverAddr = "120.55.251.145"
+serverPort = 5443
+auth.token = "vUyfZhtjgzsuPs68"
+transport.tcpMux = true
+log.level = "info"
+log.maxDays = 3
+
+[[proxies]]
+name = "web-http"
+type = "tcp"
+localIP = "10.0.0.2"
+localPort = 80
+remotePort = 8080
+
+[[proxies]]
+name = "web-manager"
+type = "tcp"
+localIP = "10.0.0.2"
+localPort = 8081
+remotePort = 8081
+
+[[proxies]]
+name = "HA"
+type = "tcp"
+localIP = "10.0.0.2"
+localPort = 8123
+remotePort = 2334
