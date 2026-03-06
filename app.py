@@ -457,18 +457,19 @@ function refreshProxies() {{
             if(d.proxies.length === 0) {{
                 list.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">暂无转发配置</div></div>';
             }} else {{
-                list.innerHTML = d.proxies.map((p, i) => `
-<div class="proxy-item" id="proxy-${{i}}">
-<div class="proxy-icon">📡</div>
-<div class="proxy-info">
-<span class="proxy-name">${p.name}</span>
-<span class="proxy-detail">${p.localIP}:${p.localPort}<span class="arrow">→</span>${p.remotePort}</span>
-</div>
-<div class="proxy-type">${p.type.toUpperCase()}</div>
-<div class="proxy-actions">
-<button class="btn-icon" onclick="editProxy(${i})">✏️</button>
-<button class="btn-icon btn-delete" onclick="deleteProxy(${i})">🗑️</button>
-</div></div>`.join(''));
+                list.innerHTML = d.proxies.map(function(p, i) {{
+                    return '<div class="proxy-item" id="proxy-' + i + '">' +
+                        '<div class="proxy-icon">📡</div>' +
+                        '<div class="proxy-info">' +
+                        '<span class="proxy-name">' + p.name + '</span>' +
+                        '<span class="proxy-detail">' + p.localIP + ':' + p.localPort + '<span class="arrow">→</span>' + p.remotePort + '</span>' +
+                        '</div>' +
+                        '<div class="proxy-type">' + p.type.toUpperCase() + '</div>' +
+                        '<div class="proxy-actions">' +
+                        '<button class="btn-icon" onclick="editProxy(' + i + ')">✏️</button>' +
+                        '<button class="btn-icon btn-delete" onclick="deleteProxy(' + i + ')">🗑️</button>' +
+                        '</div></div>';
+                }}).join('');
             }}
         }})
         .catch(e => console.error('Refresh proxies error:', e));
