@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FRP Web Manager v1.2.0 - 一键部署脚本
+# FRP Web Manager v1.2.2 - 一键部署脚本
 # 功能：自动检测硬件平台 + 下载对应 frpc + 交互式配置
 # 使用：sudo ./deploy.sh
 
@@ -52,14 +52,6 @@ echo ""
 echo "📁 创建目录..."
 mkdir -p $INSTALL_DIR
 cd $INSTALL_DIR
-
-echo ""
-echo "📥 克隆代码..."
-if [ -d ".git" ]; then
-    git pull
-else
-    git clone http://gogs.abab.pw/claw/frp_manager.git .
-fi
 
 # 下载并部署 frpc 二进制
 echo ""

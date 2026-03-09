@@ -1,4 +1,4 @@
-# FRP Web Manager v1.2.1
+# FRP Web Manager v1.2.2
 
 基于 Flask 的 FRP 客户端 Web 管理界面，采用 Apple 设计风格。
 
@@ -132,6 +132,9 @@ frp-web-manager/
 5. 定期更新依赖
 
 ## 📝 更新日志
+
+### v1.2.2 (2026-03-09)
+- 🗑️ **移除自动克隆代码步骤** - deploy.sh 不再执行 git clone/pull，需手动克隆
 
 ### v1.2.1 (2026-03-09)
 - 🔧 **修复配置文件权限问题** - deploy.sh 自动设置 frpc.toml 可写权限
