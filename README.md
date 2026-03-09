@@ -1,4 +1,4 @@
-# FRP Web Manager
+# FRP Web Manager v1.2.0
 
 基于 Flask 的 FRP 客户端 Web 管理界面，采用 Apple 设计风格。
 
@@ -10,83 +10,64 @@
 - ⚙️ **主配置编辑** - 修改 FRP 服务器连接参数
 - 📋 **日志查看** - 实时查看 frpc 运行日志
 - 🍎 **Apple 设计** - 符合 Apple Human Interface Guidelines 的 UI
+- 🔧 **一键部署** - 自动检测硬件平台 + 安装 frpc
 
 ## 🚀 快速部署
 
-### 1. 安装依赖
+### 方式一：一键部署（推荐）
 
 ```bash
-# Ubuntu/Debian
+# 克隆仓库
+cd /opt
+sudo git clone http://gogs.abab.pw/claw/frp_manager.git
+cd frp_manager
+
+# 运行一键部署脚本
+sudo ./deploy.sh
+```
+
+脚本会自动完成：
+- ✅ 检测硬件平台（amd64/arm64/arm）
+- ✅ 下载对应架构的 frpc
+- ✅ 安装 Python 依赖
+- ✅ 配置 systemd 服务
+- ✅ 启动所有服务
+
+### 方式二：手动部署
+
+```bash
+# 1. 安装依赖
 sudo apt update
-sudo apt install -y python3-pip docker.io
+sudo apt install -y python3-flask git
 
-# 安装 Flask
-pip3 install flask
-
-# 或使用 Docker 部署
-docker pull snowdreamtech/frpc:latest
-```
-
-### 2. 配置 FRP
-
-```bash
-sudo mkdir -p /usr/local/frp
-sudo cp frpc.toml.example /usr/local/frp/frpc.toml
-
-# 编辑配置文件
-sudo nano /usr/local/frp/frpc.toml
-```
-
-### 3. 安装 Web Manager
-
-```bash
-# 创建目录
+# 2. 克隆代码
 sudo mkdir -p /opt/frp-web-manager
 cd /opt/frp-web-manager
+sudo git clone http://gogs.abab.pw/claw/frp_manager.git .
 
-# 复制文件
-sudo cp app.py /opt/frp-web-manager/
+# 3. 配置服务
 sudo cp frp-web-manager.service /etc/systemd/system/
+sudo cp frpc.service /etc/systemd/system/
 
-# 设置权限
-sudo chmod +x app.py
-```
-
-### 4. 启动服务
-
-```bash
-# 重载 systemd
+# 4. 启动服务
 sudo systemctl daemon-reload
+sudo systemctl enable frp-web-manager frpc
+sudo systemctl start frp-web-manager frpc
 
-# 启用并启动服务
-sudo systemctl enable frp-web-manager
-sudo systemctl start frp-web-manager
-
-# 检查状态
+# 5. 检查状态
 sudo systemctl status frp-web-manager
-```
-
-### 5. 配置 sudo 权限
-
-```bash
-# 允许无密码重启 frpc
-echo "www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart frpc" | sudo tee /etc/sudoers.d/frp-web-manager
-echo "www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop frpc" | sudo tee -a /etc/sudoers.d/frp-web-manager
-echo "www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl start frpc" | sudo tee -a /etc/sudoers.d/frp-web-manager
-echo "www-data ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active frpc" | sudo tee -a /etc/sudoers.d/frp-web-manager
 ```
 
 ## 🔧 配置说明
 
-### FRP 配置 (`frpc.toml`)
+### FRP 配置
+
+编辑 `/usr/local/frp/frpc.toml`：
 
 ```toml
 serverAddr = "你的 FRP 服务器地址"
 serverPort = 5443
 auth.token = "你的 Token"
-transport.tcpMux = true
-log.level = "info"
-log.maxDays = 3
 
 [[proxies]]
 name = "web-http"
@@ -94,13 +75,6 @@ type = "tcp"
 localIP = "10.0.0.2"
 localPort = 80
 remotePort = 8080
-
-[[proxies]]
-name = "web-manager"
-type = "tcp"
-localIP = "10.0.0.2"
-localPort = 8081
-remotePort = 8081
 ```
 
 ### Web Manager 配置
@@ -158,6 +132,17 @@ frp-web-manager/
 5. 定期更新依赖
 
 ## 📝 更新日志
+
+### v1.2.0 (2026-03-09)
+- 🔍 **硬件平台自动检测** - 支持 amd64/arm64/arm 架构
+- 📦 **自动下载 frpc** - 根据架构下载对应版本 (0.61.1)
+- 🚀 **一键部署脚本** - deploy.sh 包含所有步骤
+- 🐛 **修复 Python 依赖安装** - 使用 apt 安装 python3-flask
+
+### v1.1.0 (2026-03-07)
+- 🔧 纯二进制部署（移除 Docker）
+- ⚙️ 交互式配置向导
+- 📝 完善文档（DEPLOY.md, QUICKSTART.md）
 
 ### v1.0.0 (2026-03-06)
 - ✨ 初始版本

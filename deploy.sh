@@ -23,8 +23,7 @@ fi
 echo ""
 echo "📦 安装依赖..."
 apt update
-apt install -y python3-pip git
-pip3 install flask
+apt install -y python3-pip git python3-flask
 
 # 检测硬件平台
 echo ""
