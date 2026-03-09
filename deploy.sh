@@ -79,6 +79,26 @@ mkdir -p ${FRP_DIR}
 cp frp_${FRP_VERSION}_linux-${FRP_ARCH}/frpc ${FRP_DIR}/
 chmod +x ${FRP_DIR}/frpc
 
+echo "🔧 设置 frpc 配置权限..."
+# 创建初始配置文件并设置权限（允许 Web Manager 写入）
+if [ ! -f "${FRP_DIR}/frpc.toml" ]; then
+    cat > ${FRP_DIR}/frpc.toml << EOF
+serverAddr = "120.55.251.145"
+serverPort = 5443
+auth.token = "vUyfZhtjgzsuPs68"
+
+[[proxies]]
+name = "web-manager"
+type = "tcp"
+localIP = "10.0.0.2"
+localPort = 8081
+remotePort = 8081
+EOF
+fi
+# 设置配置文件权限（允许 jiang 用户写入）
+chown $SUDO_USER:$SUDO_USER ${FRP_DIR}/frpc.toml
+chmod 644 ${FRP_DIR}/frpc.toml
+
 echo "⚙️ 配置 frpc 服务..."
 cd $INSTALL_DIR
 cp frpc.service /etc/systemd/system/ 2>/dev/null || echo "⚠️  frpc.service 已存在"
