@@ -371,8 +371,9 @@ body {{
 <div class="form-group"><label>远程端口</label><input type="number" id="pRemotePort" required placeholder="如：8080"></div>
 <div id="authFields" style="display:none;border-top:1px solid var(--apple-separator);padding-top:16px;margin-top:8px">
 <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-bottom:12px">
-<span style="font-size:13px;font-weight:600;color:var(--apple-text-secondary)">🔐 HTTP 认证</span>
+<span style="font-size:13px;font-weight:600;color:var(--apple-text-secondary)">🔐 HTTP/HTTPS 配置</span>
 </div>
+<div class="form-group"><label>绑定域名</label><input type="text" id="pCustomDomain" placeholder="如：web.example.com（留空自动生成）"></div>
 <div class="form-group"><label>用户名</label><input type="text" id="pHttpUser" placeholder="留空则禁用认证"></div>
 <div class="form-group"><label>密码</label><input type="text" id="pHttpPassword" placeholder="留空则禁用认证"></div>
 </div>
@@ -489,7 +490,8 @@ function editProxy(idx) {{
     document.getElementById('pType').value = p.type;
     document.getElementById('pLocalIP').value = p.localIP;
     document.getElementById('pLocalPort').value = p.localPort;
-    document.getElementById('pRemotePort').value = p.remotePort;
+    document.getElementById('pRemotePort').value = p.remotePort || '';
+    document.getElementById('pCustomDomain').value = p.customDomain || '';
     document.getElementById('pHttpUser').value = p.httpUser || '';
     document.getElementById('pHttpPassword').value = p.httpPassword || '';
     toggleAuthFields();
@@ -504,6 +506,7 @@ function addProxy() {{
     document.getElementById('pLocalIP').value = '10.0.0.2';
     document.getElementById('pLocalPort').value = '';
     document.getElementById('pRemotePort').value = '';
+    document.getElementById('pCustomDomain').value = '';
     document.getElementById('pHttpUser').value = '';
     document.getElementById('pHttpPassword').value = '';
     toggleAuthFields();
@@ -543,6 +546,7 @@ function saveProxy(e) {{
         localIP: document.getElementById('pLocalIP').value,
         localPort: parseInt(document.getElementById('pLocalPort').value),
         remotePort: parseInt(document.getElementById('pRemotePort').value),
+        customDomain: document.getElementById('pCustomDomain').value,
         httpUser: document.getElementById('pHttpUser').value,
         httpPassword: document.getElementById('pHttpPassword').value
     }};
@@ -615,6 +619,7 @@ def read_proxies():
             lip = re.search(r'localIP = "([^"]+)"', block)
             lport = re.search(r'localPort = (\d+)', block)
             rport = re.search(r'remotePort = (\d+)', block)
+            custom_domain = re.search(r'customDomains = \["([^"]+)"\]', block)
             http_user = re.search(r'httpUser = "([^"]+)"', block)
             http_pass = re.search(r'httpPassword = "([^"]+)"', block)
             if name and ptype:
@@ -622,7 +627,8 @@ def read_proxies():
                     "name": name.group(1), "type": ptype.group(1),
                     "localIP": lip.group(1) if lip else "10.0.0.2",
                     "localPort": lport.group(1) if lport else "80",
-                    "remotePort": rport.group(1) if rport else "8080",
+                    "remotePort": rport.group(1) if rport else "",
+                    "customDomain": custom_domain.group(1) if custom_domain else "",
                     "httpUser": http_user.group(1) if http_user else "",
                     "httpPassword": http_pass.group(1) if http_pass else ""
                 })
@@ -639,10 +645,14 @@ def write_proxies(proxies):
     # 新版 frpc 0.67.0+ 使用嵌套 TOML 格式
     cfg = f'serverAddr = "{sa}"\nserverPort = {sp}\n\n[auth]\ntoken = "{token}"\n\n[transport]\ntcpMux = true\n\n[log]\nlevel = "info"\nmaxDays = 3\n'
     for p in proxies:
-        cfg += f'\n[[proxies]]\nname = "{p["name"]}"\ntype = "{p["type"]}"\nlocalIP = "{p["localIP"]}"\nlocalPort = {p["localPort"]}\nremotePort = {p["remotePort"]}\n'
-        # 如果是 HTTP/HTTPS 类型且有认证信息，添加认证配置
-        if p["type"] in ["http", "https"] and p.get("httpUser") and p.get("httpPassword"):
-            cfg += f'httpUser = "{p["httpUser"]}"\nhttpPassword = "{p["httpPassword"]}"\n'
+        # HTTP/HTTPS 类型使用 customDomains 而不是 remotePort
+        if p["type"] in ["http", "https"]:
+            cfg += f'\n[[proxies]]\nname = "{p["name"]}"\ntype = "{p["type"]}"\nlocalIP = "{p["localIP"]}"\nlocalPort = {p["localPort"]}\n'
+            if p.get("httpUser") and p.get("httpPassword"):
+                cfg += f'httpUser = "{p["httpUser"]}"\nhttpPassword = "{p["httpPassword"]}"\n'
+            cfg += f'customDomains = ["{p.get("customDomain", p["name"] + ".example.com")}"]\n'
+        else:
+            cfg += f'\n[[proxies]]\nname = "{p["name"]}"\ntype = "{p["type"]}"\nlocalIP = "{p["localIP"]}"\nlocalPort = {p["localPort"]}\nremotePort = {p["remotePort"]}\n'
     with open(CFG, "w") as f: f.write(cfg)
 
 @app.route("/api/proxy/save", methods=["POST"])
