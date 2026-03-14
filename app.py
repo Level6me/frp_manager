@@ -595,12 +595,14 @@ def api_proxies():
 def read_config():
     try:
         with open(CFG) as f: c = f.read()
-        return {"sa": re.search(r'serverAddr = "([^"]+)"', c).group(1) or "120.55.251.145",
+        # 支持新旧两种格式
+        tk = re.search(r'auth\.token = "([^"]+)"', c) or re.search(r'\[auth\][^\[]*token = "([^"]+)"', c, re.DOTALL)
+        return {"sa": re.search(r'serverAddr = "([^"]+)"', c).group(1) or "your-server-ip",
                 "sp": re.search(r"serverPort = (\d+)", c).group(1) or "5443",
-                "tk": re.search(r'auth.token = "([^"]+)"', c).group(1) or "",
+                "tk": tk.group(1) if tk else "",
                 "li": "10.0.0.2", "lp": "80", "rp": "8080"}
     except:
-        return {"sa": "120.55.251.145", "sp": "5443", "tk": "", "li": "10.0.0.2", "lp": "80", "rp": "8080"}
+        return {"sa": "your-server-ip", "sp": "5443", "tk": "", "li": "10.0.0.2", "lp": "80", "rp": "8080"}
 
 def read_proxies():
     proxies = []
@@ -632,8 +634,10 @@ def write_proxies(proxies):
     with open(CFG) as f: c = f.read()
     sa = re.search(r'serverAddr = "([^"]+)"', c).group(1) or "your-server-ip"
     sp = re.search(r"serverPort = (\d+)", c).group(1) or "5443"
-    tk = re.search(r'auth.token = "([^"]+)"', c).group(1) or ""
-    cfg = f'serverAddr = "{sa}"\nserverPort = {sp}\nauth.token = "{tk}"\ntransport.tcpMux = true\nlog.level = "info"\nlog.maxDays = 3\n'
+    tk = re.search(r'auth\.token = "([^"]+)"', c) or re.search(r'\[auth\][^\[]*token = "([^"]+)"', c, re.DOTALL)
+    token = tk.group(1) if tk else ""
+    # 新版 frpc 0.67.0+ 使用嵌套 TOML 格式
+    cfg = f'serverAddr = "{sa}"\nserverPort = {sp}\n\n[auth]\ntoken = "{token}"\n\n[transport]\ntcpMux = true\n\n[log]\nlevel = "info"\nmaxDays = 3\n'
     for p in proxies:
         cfg += f'\n[[proxies]]\nname = "{p["name"]}"\ntype = "{p["type"]}"\nlocalIP = "{p["localIP"]}"\nlocalPort = {p["localPort"]}\nremotePort = {p["remotePort"]}\n'
         # 如果是 HTTP/HTTPS 类型且有认证信息，添加认证配置
