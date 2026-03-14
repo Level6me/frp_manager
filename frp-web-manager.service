@@ -1,0 +1,14 @@
+[Unit]
+Description=FRP Web Manager
+After=network.target
+
+[Service]
+Type=simple
+User=jiang
+WorkingDirectory=/home/jiang/frp-web-manager
+ExecStart=/usr/bin/python3 /home/jiang/frp-web-manager/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

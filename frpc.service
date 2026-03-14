@@ -1,0 +1,17 @@
+[Unit]
+Description=frp client service
+After=network.target syslog.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+# 二进制文件部署路径
+ExecStart=/usr/local/frp/frpc -c /usr/local/frp/frpc.toml
+Restart=on-failure
+RestartSec=5s
+# 限制打开文件数
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
