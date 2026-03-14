@@ -365,10 +365,17 @@ body {{
 <input type="hidden" id="proxyIndex" value="-1">
 <div class="form-grid">
 <div class="form-group"><label>名称</label><input type="text" id="pName" required placeholder="如：web-http"></div>
-<div class="form-group"><label>类型</label><select id="pType"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="http">HTTP</option><option value="https">HTTPS</option></select></div>
+<div class="form-group"><label>类型</label><select id="pType" onchange="toggleAuthFields()"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="http">HTTP</option><option value="https">HTTPS</option></select></div>
 <div class="form-group"><label>本地 IP</label><input type="text" id="pLocalIP" value="10.0.0.2" required></div>
 <div class="form-group"><label>本地端口</label><input type="number" id="pLocalPort" required placeholder="如：80"></div>
 <div class="form-group"><label>远程端口</label><input type="number" id="pRemotePort" required placeholder="如：8080"></div>
+<div id="authFields" style="display:none;border-top:1px solid var(--apple-separator);padding-top:16px;margin-top:8px">
+<div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-bottom:12px">
+<span style="font-size:13px;font-weight:600;color:var(--apple-text-secondary)">🔐 HTTP 认证</span>
+</div>
+<div class="form-group"><label>用户名</label><input type="text" id="pHttpUser" placeholder="留空则禁用认证"></div>
+<div class="form-group"><label>密码</label><input type="text" id="pHttpPassword" placeholder="留空则禁用认证"></div>
+</div>
 </div>
 <div style="margin-top:20px;display:flex;gap:10px">
 <button type="submit" class="btn btn-primary" style="flex:1">保存</button>
@@ -483,6 +490,9 @@ function editProxy(idx) {{
     document.getElementById('pLocalIP').value = p.localIP;
     document.getElementById('pLocalPort').value = p.localPort;
     document.getElementById('pRemotePort').value = p.remotePort;
+    document.getElementById('pHttpUser').value = p.httpUser || '';
+    document.getElementById('pHttpPassword').value = p.httpPassword || '';
+    toggleAuthFields();
     document.getElementById('modalTitle').textContent = '编辑代理';
     document.getElementById('proxyModal').classList.add('active');
 }}
@@ -494,8 +504,21 @@ function addProxy() {{
     document.getElementById('pLocalIP').value = '10.0.0.2';
     document.getElementById('pLocalPort').value = '';
     document.getElementById('pRemotePort').value = '';
+    document.getElementById('pHttpUser').value = '';
+    document.getElementById('pHttpPassword').value = '';
+    toggleAuthFields();
     document.getElementById('modalTitle').textContent = '添加代理';
     document.getElementById('proxyModal').classList.add('active');
+}}
+
+function toggleAuthFields() {{
+    const type = document.getElementById('pType').value;
+    const authDiv = document.getElementById('authFields');
+    if(type === 'http' || type === 'https') {{
+        authDiv.style.display = 'block';
+    }} else {{
+        authDiv.style.display = 'none';
+    }}
 }}
 
 function deleteProxy(idx) {{
@@ -519,7 +542,9 @@ function saveProxy(e) {{
         type: document.getElementById('pType').value,
         localIP: document.getElementById('pLocalIP').value,
         localPort: parseInt(document.getElementById('pLocalPort').value),
-        remotePort: parseInt(document.getElementById('pRemotePort').value)
+        remotePort: parseInt(document.getElementById('pRemotePort').value),
+        httpUser: document.getElementById('pHttpUser').value,
+        httpPassword: document.getElementById('pHttpPassword').value
     }};
     fetch('/api/proxy/save', {{
         method: 'POST',
@@ -588,12 +613,16 @@ def read_proxies():
             lip = re.search(r'localIP = "([^"]+)"', block)
             lport = re.search(r'localPort = (\d+)', block)
             rport = re.search(r'remotePort = (\d+)', block)
+            http_user = re.search(r'httpUser = "([^"]+)"', block)
+            http_pass = re.search(r'httpPassword = "([^"]+)"', block)
             if name and ptype:
                 proxies.append({
                     "name": name.group(1), "type": ptype.group(1),
                     "localIP": lip.group(1) if lip else "10.0.0.2",
                     "localPort": lport.group(1) if lport else "80",
-                    "remotePort": rport.group(1) if rport else "8080"
+                    "remotePort": rport.group(1) if rport else "8080",
+                    "httpUser": http_user.group(1) if http_user else "",
+                    "httpPassword": http_pass.group(1) if http_pass else ""
                 })
     except Exception as e:
         print(f"Error: {e}")
@@ -601,12 +630,15 @@ def read_proxies():
 
 def write_proxies(proxies):
     with open(CFG) as f: c = f.read()
-    sa = re.search(r'serverAddr = "([^"]+)"', c).group(1) or "120.55.251.145"
+    sa = re.search(r'serverAddr = "([^"]+)"', c).group(1) or "your-server-ip"
     sp = re.search(r"serverPort = (\d+)", c).group(1) or "5443"
     tk = re.search(r'auth.token = "([^"]+)"', c).group(1) or ""
     cfg = f'serverAddr = "{sa}"\nserverPort = {sp}\nauth.token = "{tk}"\ntransport.tcpMux = true\nlog.level = "info"\nlog.maxDays = 3\n'
     for p in proxies:
         cfg += f'\n[[proxies]]\nname = "{p["name"]}"\ntype = "{p["type"]}"\nlocalIP = "{p["localIP"]}"\nlocalPort = {p["localPort"]}\nremotePort = {p["remotePort"]}\n'
+        # 如果是 HTTP/HTTPS 类型且有认证信息，添加认证配置
+        if p["type"] in ["http", "https"] and p.get("httpUser") and p.get("httpPassword"):
+            cfg += f'httpUser = "{p["httpUser"]}"\nhttpPassword = "{p["httpPassword"]}"\n'
     with open(CFG, "w") as f: f.write(cfg)
 
 @app.route("/api/proxy/save", methods=["POST"])
@@ -615,7 +647,15 @@ def api_save_proxy():
         data = request.json
         proxies = read_proxies()
         idx = data.get('index', -1)
-        new_proxy = {"name": data['name'], "type": data['type'], "localIP": data['localIP'], "localPort": data['localPort'], "remotePort": data['remotePort']}
+        new_proxy = {
+            "name": data['name'],
+            "type": data['type'],
+            "localIP": data['localIP'],
+            "localPort": data['localPort'],
+            "remotePort": data['remotePort'],
+            "httpUser": data.get('httpUser', ''),
+            "httpPassword": data.get('httpPassword', '')
+        }
         if idx >= 0 and idx < len(proxies): proxies[idx] = new_proxy
         else: proxies.append(new_proxy)
         write_proxies(proxies)
