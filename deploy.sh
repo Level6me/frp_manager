@@ -306,7 +306,6 @@ if [ "$USE_LOCAL_FILE" = "yes" ]; then
     FRP_DIR_NAME=$(tar -tzf ${FRP_FILE} | head -1 | cut -f1 -d"/")
     print_step "检测到解压目录：${FRP_DIR_NAME}"
 else
-else
     print_step "下载 frp ${FRP_VERSION} (linux_${FRP_ARCH})..."
     cd /tmp
     FRP_FILE="frp_${FRP_VERSION}_linux_${FRP_ARCH}.tar.gz"
