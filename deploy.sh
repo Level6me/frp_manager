@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# FRP Web Manager v1.7.0 - 一键部署脚本
+# FRP Web Manager v1.7.1 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
-# 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包
+# 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包 + 30 秒超时
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -131,12 +131,16 @@ echo -e "${YELLOW}🔄${NC} 正在获取 frp 最新版本..."
 LATEST_VERSION=$(get_latest_frp_version)
 print_success "当前最新版本：v${LATEST_VERSION}"
 
-# 验证最新版本是否可下载（仅提示，不强制切换）
-echo -e "${YELLOW}🔍${NC} 验证版本 v${LATEST_VERSION} 可用性..."
+# 验证最新版本是否可下载（30 秒超时，仅提示不强制切换）
+echo -e "${YELLOW}🔍${NC} 验证版本 v${LATEST_VERSION} 可用性...（30 秒超时）"
 TEST_URL="https://github.com/fatedier/frp/releases/download/v${LATEST_VERSION}/frp_${LATEST_VERSION}_linux_${FRP_ARCH}.tar.gz"
-TEST_CODE=$(curl -sL -w "%{http_code}" -o /dev/null "${TEST_URL}")
+TEST_CODE=$(curl -sL --max-time 30 -w "%{http_code}" -o /dev/null "${TEST_URL}")
 if [ "$TEST_CODE" != "200" ]; then
-    print_warn "最新版本 v${LATEST_VERSION} 可能无法下载 (HTTP ${TEST_CODE})"
+    if [ "$TEST_CODE" = "000" ]; then
+        print_warn "验证超时（>30 秒），网络可能不通"
+    else
+        print_warn "最新版本 v${LATEST_VERSION} 可能无法下载 (HTTP ${TEST_CODE})"
+    fi
     print_warn "你可以选择其他版本或使用本地已有的压缩包"
 fi
 
