@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FRP Web Manager v1.5.3 - 一键部署脚本
-# 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证
+# FRP Web Manager v1.5.4 - 一键部署脚本
+# 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -234,12 +234,13 @@ mkdir -p $FRP_DIR
 cd $INSTALL_DIR
 
 print_step "下载 frp ${FRP_VERSION} (linux-${FRP_ARCH})..."
+echo -e "${CYAN}  URL: ${FRP_URL}${NC}"
 cd /tmp
 FRP_FILE="frp_${FRP_VERSION}_linux-${FRP_ARCH}.tar.gz"
 FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/${FRP_FILE}"
 
-# 下载并检查 HTTP 状态码
-HTTP_CODE=$(curl -sL -w "%{http_code}" -o ${FRP_FILE} ${FRP_URL})
+# 下载并检查 HTTP 状态码（显示进度条）
+HTTP_CODE=$(curl --progress-bar -w "%{http_code}" -o ${FRP_FILE} ${FRP_URL})
 if [ "$HTTP_CODE" != "200" ]; then
     print_error "下载失败 (HTTP ${HTTP_CODE})，版本号 v${FRP_VERSION} 可能不存在"
     print_error "请检查版本号是否正确，或选择其他版本"
