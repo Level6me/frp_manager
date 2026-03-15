@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# FRP Web Manager v1.8.0 - 一键部署脚本
+# FRP Web Manager v1.8.1 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
 # 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包 + 30 秒超时 + 防止 set -e 退出
 # 修复：本地压缩包解压后动态获取目录名 + systemd 服务文件改为脚本内生成
+# 修复：从 GitHub 下载 app.py 应用文件
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -288,6 +289,16 @@ print_step "创建安装目录..."
 mkdir -p $INSTALL_DIR
 mkdir -p $FRP_DIR
 cd $INSTALL_DIR
+
+# 下载 app.py 和前端文件（从 GitHub raw）
+print_step "下载 FRP Web Manager 应用文件..."
+RAW_BASE="https://raw.githubusercontent.com/Level6me/frp_manager/main"
+curl -sL -o app.py "${RAW_BASE}/app.py"
+if [ ! -f "app.py" ] || [ ! -s "app.py" ]; then
+    print_error "下载 app.py 失败"
+    exit 1
+fi
+print_success "已下载 app.py"
 
 # 检查是否使用本地文件
 if [ "$USE_LOCAL_FILE" = "yes" ]; then
