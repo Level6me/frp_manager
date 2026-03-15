@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# FRP Web Manager v1.4.4 - 一键部署脚本
+# FRP Web Manager v1.5.0 - 一键部署脚本
+# 功能：实时获取 frp 最新版本号
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -99,11 +100,31 @@ case $ARCH in
         ;;
 esac
 
+# 获取最新版本号
+get_latest_frp_version() {
+    local latest=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    if [ -n "$latest" ]; then
+        echo "$latest"
+    else
+        echo "0.61.1"  # fallback
+    fi
+}
+
+# 获取最新 5 个版本
+get_recent_frp_versions() {
+    curl -s https://api.github.com/repos/fatedier/frp/releases?per_page=5 | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//'
+}
+
 # 选择 frpc 版本
 echo ""
+echo -e "${YELLOW}🔄${NC} 正在获取 frp 最新版本..."
+LATEST_VERSION=$(get_latest_frp_version)
+print_success "当前最新版本：v${LATEST_VERSION}"
+
+echo ""
 echo -e "${BOLD}📦 选择 frpc 版本：${NC}"
-echo -e "   ${GREEN}1)${NC} 默认最新版本 (v0.61.1)"
-echo -e "   ${GREEN}2)${NC} 最新的五个版本 (v0.61.1 ~ v0.58.0)"
+echo -e "   ${GREEN}1)${NC} 最新版本 (v${LATEST_VERSION})"
+echo -e "   ${GREEN}2)${NC} 从最近 5 个版本中选择"
 echo -e "   ${GREEN}3)${NC} 自定义版本"
 echo ""
 input_prompt "请输入选项 (1/2/3，默认 1): "
@@ -112,22 +133,20 @@ read VERSION_CHOICE
 case $VERSION_CHOICE in
     2)
         echo ""
+        echo -e "${YELLOW}🔄${NC} 正在获取最近 5 个版本..."
+        VERSIONS=($(get_recent_frp_versions))
         echo -e "${BOLD}可选择的版本：${NC}"
-        echo -e "   ${GREEN}1)${NC} v0.61.1 (最新)"
-        echo -e "   ${GREEN}2)${NC} v0.61.0"
-        echo -e "   ${GREEN}3)${NC} v0.60.0"
-        echo -e "   ${GREEN}4)${NC} v0.59.0"
-        echo -e "   ${GREEN}5)${NC} v0.58.0"
+        for i in "${!VERSIONS[@]}"; do
+            echo -e "   ${GREEN}$((i+1)))${NC} v${VERSIONS[$i]}"
+        done
         echo ""
-        input_prompt "请选择版本 (1-5，默认 1): "
+        input_prompt "请选择版本 (1-${#VERSIONS[@]}，默认 1): "
         read VERSION_SELECT
-        case $VERSION_SELECT in
-            2) FRP_VERSION="0.61.0" ;;
-            3) FRP_VERSION="0.60.0" ;;
-            4) FRP_VERSION="0.59.0" ;;
-            5) FRP_VERSION="0.58.0" ;;
-            *) FRP_VERSION="0.61.1" ;;
-        esac
+        if [ -z "$VERSION_SELECT" ] || [ "$VERSION_SELECT" -lt 1 ] || [ "$VERSION_SELECT" -gt "${#VERSIONS[@]}" ]; then
+            FRP_VERSION="${VERSIONS[0]}"
+        else
+            FRP_VERSION="${VERSIONS[$((VERSION_SELECT-1))]}"
+        fi
         ;;
     3)
         echo ""
@@ -136,7 +155,7 @@ case $VERSION_CHOICE in
         FRP_VERSION="$CUSTOM_VERSION"
         ;;
     *)
-        FRP_VERSION="0.61.1"
+        FRP_VERSION="$LATEST_VERSION"
         ;;
 esac
 
