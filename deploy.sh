@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# FRP Web Manager v1.8.1 - 一键部署脚本
+# FRP Web Manager v1.8.2 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
 # 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包 + 30 秒超时 + 防止 set -e 退出
 # 修复：本地压缩包解压后动态获取目录名 + systemd 服务文件改为脚本内生成
-# 修复：从 GitHub 下载 app.py 应用文件
+# 修复：从 GitHub 下载 app.py 应用文件 + 权限设置 + 状态反馈
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -30,7 +30,7 @@ print_banner() {
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║${NC}          ${BOLD}🚀 FRP Web Manager 一键部署脚本${NC}                  ${CYAN}║${NC}"
-    echo -e "${CYAN}║${NC}                    ${YELLOW}v1.3.2${NC}                              ${CYAN}║${NC}"
+    echo -e "${CYAN}║${NC}                    ${YELLOW}v1.8.1${NC}                              ${CYAN}║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -298,7 +298,13 @@ if [ ! -f "app.py" ] || [ ! -s "app.py" ]; then
     print_error "下载 app.py 失败"
     exit 1
 fi
-print_success "已下载 app.py"
+
+# 设置权限和所有者
+chown $SUDO_USER:$SUDO_USER app.py
+chmod 644 app.py
+chown -R $SUDO_USER:$SUDO_USER $INSTALL_DIR
+
+print_success "已下载 app.py（所有者：$SUDO_USER）"
 
 # 检查是否使用本地文件
 if [ "$USE_LOCAL_FILE" = "yes" ]; then
@@ -388,6 +394,7 @@ EOF
 
 chown $SUDO_USER:$SUDO_USER ${FRP_DIR}/frpc.toml
 chmod 644 ${FRP_DIR}/frpc.toml
+print_success "frpc 配置文件已创建 (${FRP_DIR}/frpc.toml)"
 
 print_step "配置 systemd 服务..."
 cd $INSTALL_DIR
@@ -439,10 +446,15 @@ chmod 440 /etc/sudoers.d/frp-web-manager
 
 print_step "重载 systemd 配置..."
 systemctl daemon-reload
+print_success "systemd 配置已重载"
 
 print_step "启动服务..."
 systemctl enable $SERVICE_NAME $FRPC_SERVICE >/dev/null 2>&1
 systemctl restart $SERVICE_NAME $FRPC_SERVICE
+print_success "服务已启动"
+
+# 等待服务启动
+sleep 2
 
 # ==================== 完成 ====================
 echo ""
