@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FRP Web Manager v1.3.2 - 一键部署脚本
+# FRP Web Manager v1.4.3 - 一键部署脚本
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -202,15 +202,6 @@ print_step "创建安装目录..."
 mkdir -p $INSTALL_DIR
 mkdir -p $FRP_DIR
 cd $INSTALL_DIR
-
-# 克隆或更新代码
-if [ -d ".git" ]; then
-    print_step "更新代码仓库..."
-    git pull -q
-else
-    print_step "克隆代码仓库..."
-    git clone -q http://gogs.abab.pw/claw/frp_manager.git .
-fi
 
 print_step "下载 frp ${FRP_VERSION} (linux-${FRP_ARCH})..."
 cd /tmp
