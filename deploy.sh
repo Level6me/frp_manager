@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FRP Web Manager v1.5.1 - 一键部署脚本
-# 功能：实时获取 frp 最新版本号 + 自动检测本机 IP
+# FRP Web Manager v1.5.2 - 一键部署脚本
+# 功能：实时获取 frp 最新版本号 + 自动检测本机 IP（支持手动修改）
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -161,15 +161,13 @@ esac
 
 # 自动获取本机局域网 IP
 echo -e "${YELLOW}🔍${NC} 检测本机局域网 IP..."
-LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
-if [ -z "$LOCAL_IP" ]; then
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
+AUTO_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+if [ -z "$AUTO_IP" ]; then
+    AUTO_IP=$(hostname -I | awk '{print $1}')
 fi
-if [ -z "$LOCAL_IP" ]; then
-    print_error "无法获取本机 IP，请检查网络连接"
-    exit 1
+if [ -z "$AUTO_IP" ]; then
+    AUTO_IP="192.168.1.100"  # fallback 默认值
 fi
-print_success "本机 IP: ${LOCAL_IP}"
 
 # FRP 服务器配置
 echo ""
@@ -189,7 +187,15 @@ FRP_TOKEN=${FRP_TOKEN:-"your-token"}
 # 本地配置
 echo ""
 echo -e "${BOLD}💻 配置本地服务：${NC}"
-print_step "Web Manager 端口：${WEB_PORT:-8081}"
+print_success "自动检测本机 IP: ${AUTO_IP}"
+input_prompt "本地 IP 地址 [${AUTO_IP}]: "
+read MANUAL_IP
+LOCAL_IP=${MANUAL_IP:-"$AUTO_IP"}
+
+input_prompt "Web Manager 端口 [8081]: "
+read WEB_PORT
+WEB_PORT=${WEB_PORT:-"8081"}
+
 input_prompt "远程访问端口 [8081]: "
 read REMOTE_PORT
 REMOTE_PORT=${REMOTE_PORT:-"8081"}
