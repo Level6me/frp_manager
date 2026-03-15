@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FRP Web Manager v1.5.4 - 一键部署脚本
-# 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度
+# FRP Web Manager v1.6.0 - 一键部署脚本
+# 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -100,9 +100,9 @@ case $ARCH in
         ;;
 esac
 
-# 获取最新版本号
+# 获取最新版本号（只获取正式 release，排除 pre-release）
 get_latest_frp_version() {
-    local latest=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    local latest=$(curl -s "https://api.github.com/repos/fatedier/frp/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
     if [ -n "$latest" ]; then
         echo "$latest"
     else
@@ -110,9 +110,18 @@ get_latest_frp_version() {
     fi
 }
 
-# 获取最新 5 个版本
+# 获取最新 5 个正式版本（排除 pre-release 和 draft）
 get_recent_frp_versions() {
-    curl -s https://api.github.com/repos/fatedier/frp/releases?per_page=5 | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//'
+    curl -s "https://api.github.com/repos/fatedier/frp/releases?per_page=10" | \
+    python3 -c "
+import sys, json
+releases = json.load(sys.stdin)
+for r in releases:
+    if not r.get('prerelease') and not r.get('draft'):
+        tag = r.get('tag_name', '')
+        if tag.startswith('v'):
+            print(tag[1:])
+" | head -n 5
 }
 
 # 选择 frpc 版本
@@ -120,6 +129,16 @@ echo ""
 echo -e "${YELLOW}🔄${NC} 正在获取 frp 最新版本..."
 LATEST_VERSION=$(get_latest_frp_version)
 print_success "当前最新版本：v${LATEST_VERSION}"
+
+# 验证最新版本是否可下载
+echo -e "${YELLOW}🔍${NC} 验证版本 v${LATEST_VERSION} 可用性..."
+TEST_URL="https://github.com/fatedier/frp/releases/download/v${LATEST_VERSION}/frp_${LATEST_VERSION}_linux-${FRP_ARCH}.tar.gz"
+TEST_CODE=$(curl -sL -w "%{http_code}" -o /dev/null "${TEST_URL}")
+if [ "$TEST_CODE" != "200" ]; then
+    print_warn "最新版本 v${LATEST_VERSION} 下载失败 (HTTP ${TEST_CODE})，使用备用版本"
+    LATEST_VERSION="0.61.1"
+    print_success "已切换到稳定版本：v${LATEST_VERSION}"
+fi
 
 echo ""
 echo -e "${BOLD}📦 选择 frpc 版本：${NC}"
