@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# FRP Web Manager v1.7.2 - 一键部署脚本
+# FRP Web Manager v1.7.3 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
 # 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包 + 30 秒超时 + 防止 set -e 退出
+# 修复：本地压缩包解压后动态获取目录名
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -300,6 +301,11 @@ if [ "$USE_LOCAL_FILE" = "yes" ]; then
         print_error "解压失败，文件可能损坏"
         exit 1
     fi
+    
+    # 动态获取解压后的目录名（本地文件不知道版本号）
+    FRP_DIR_NAME=$(tar -tzf ${FRP_FILE} | head -1 | cut -f1 -d"/")
+    print_step "检测到解压目录：${FRP_DIR_NAME}"
+else
 else
     print_step "下载 frp ${FRP_VERSION} (linux_${FRP_ARCH})..."
     cd /tmp
@@ -344,7 +350,13 @@ else
 fi
 
 print_step "安装 frpc 到 ${FRP_DIR}..."
-cp frp_${FRP_VERSION}_linux-${FRP_ARCH}/frpc ${FRP_DIR}/
+if [ "$USE_LOCAL_FILE" = "yes" ]; then
+    # 使用动态获取的目录名
+    cp ${FRP_DIR_NAME}/frpc ${FRP_DIR}/
+else
+    # 使用版本号构建目录名（下划线）
+    cp frp_${FRP_VERSION}_linux_${FRP_ARCH}/frpc ${FRP_DIR}/
+fi
 chmod +x ${FRP_DIR}/frpc
 
 print_step "创建 frpc 配置文件..."
