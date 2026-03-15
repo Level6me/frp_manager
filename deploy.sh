@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# FRP Web Manager v1.4.3 - 一键部署脚本
+# FRP Web Manager v1.4.4 - 一键部署脚本
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -196,7 +196,7 @@ print_stage "📦 第二阶段：安装部署"
 
 print_step "安装系统依赖..."
 apt update -qq
-apt install -y -qq python3-pip git python3-flask
+apt install -y -qq python3-pip python3-flask
 
 print_step "创建安装目录..."
 mkdir -p $INSTALL_DIR
