@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# FRP Web Manager v1.7.3 - 一键部署脚本
+# FRP Web Manager v1.8.0 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
 # 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包 + 30 秒超时 + 防止 set -e 退出
-# 修复：本地压缩包解压后动态获取目录名
+# 修复：本地压缩包解压后动态获取目录名 + systemd 服务文件改为脚本内生成
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -380,8 +380,41 @@ chmod 644 ${FRP_DIR}/frpc.toml
 
 print_step "配置 systemd 服务..."
 cd $INSTALL_DIR
-cp frp-web-manager.service /etc/systemd/system/
-cp frpc.service /etc/systemd/system/
+
+# 生成 frp-web-manager.service
+cat > /etc/systemd/system/frp-web-manager.service << EOF
+[Unit]
+Description=FRP Web Manager
+After=network.target
+
+[Service]
+Type=simple
+User=$SUDO_USER
+WorkingDirectory=$INSTALL_DIR
+ExecStart=/usr/bin/python3 $INSTALL_DIR/app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 生成 frpc.service
+cat > /etc/systemd/system/frpc.service << EOF
+[Unit]
+Description=FRP Client
+After=network.target
+
+[Service]
+Type=simple
+User=$SUDO_USER
+ExecStart=${FRP_DIR}/frpc -c ${FRP_DIR}/frpc.toml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 print_step "配置 sudo 权限..."
 cat > /etc/sudoers.d/frp-web-manager << EOF
