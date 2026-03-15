@@ -366,7 +366,7 @@ body {{
 <div class="form-grid">
 <div class="form-group"><label>名称</label><input type="text" id="pName" required placeholder="如：web-http"></div>
 <div class="form-group"><label>类型</label><select id="pType" onchange="toggleAuthFields()"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="http">HTTP</option><option value="https">HTTPS</option></select></div>
-<div class="form-group"><label>本地 IP</label><input type="text" id="pLocalIP" value="10.0.0.2" required></div>
+<div class="form-group"><label>本地 IP</label><input type="text" id="pLocalIP" value="127.0.0.1" required></div>
 <div class="form-group"><label>本地端口</label><input type="number" id="pLocalPort" required placeholder="如：80"></div>
 <div class="form-group"><label>远程端口</label><input type="number" id="pRemotePort" required placeholder="如：8080"></div>
 <div id="authFields" style="display:none;border-top:1px solid var(--apple-separator);padding-top:16px;margin-top:8px">
@@ -625,7 +625,7 @@ def read_proxies():
             if name and ptype:
                 proxies.append({
                     "name": name.group(1), "type": ptype.group(1),
-                    "localIP": lip.group(1) if lip else "10.0.0.2",
+                    "localIP": lip.group(1) if lip else "127.0.0.1",
                     "localPort": lport.group(1) if lport else "80",
                     "remotePort": rport.group(1) if rport else "",
                     "customDomain": custom_domain.group(1) if custom_domain else "",
