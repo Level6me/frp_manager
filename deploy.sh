@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# FRP Web Manager v1.6.0 - 一键部署脚本
+# FRP Web Manager v1.6.1 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
+# 修复：frp 文件名规则 linux_arm64 (下划线)
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -132,7 +133,7 @@ print_success "当前最新版本：v${LATEST_VERSION}"
 
 # 验证最新版本是否可下载
 echo -e "${YELLOW}🔍${NC} 验证版本 v${LATEST_VERSION} 可用性..."
-TEST_URL="https://github.com/fatedier/frp/releases/download/v${LATEST_VERSION}/frp_${LATEST_VERSION}_linux-${FRP_ARCH}.tar.gz"
+TEST_URL="https://github.com/fatedier/frp/releases/download/v${LATEST_VERSION}/frp_${LATEST_VERSION}_linux_${FRP_ARCH}.tar.gz"
 TEST_CODE=$(curl -sL -w "%{http_code}" -o /dev/null "${TEST_URL}")
 if [ "$TEST_CODE" != "200" ]; then
     print_warn "最新版本 v${LATEST_VERSION} 下载失败 (HTTP ${TEST_CODE})，使用备用版本"
@@ -252,11 +253,11 @@ mkdir -p $INSTALL_DIR
 mkdir -p $FRP_DIR
 cd $INSTALL_DIR
 
-print_step "下载 frp ${FRP_VERSION} (linux-${FRP_ARCH})..."
-echo -e "${CYAN}  URL: ${FRP_URL}${NC}"
+print_step "下载 frp ${FRP_VERSION} (linux_${FRP_ARCH})..."
 cd /tmp
-FRP_FILE="frp_${FRP_VERSION}_linux-${FRP_ARCH}.tar.gz"
+FRP_FILE="frp_${FRP_VERSION}_linux_${FRP_ARCH}.tar.gz"
 FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/${FRP_FILE}"
+echo -e "${CYAN}  URL: ${FRP_URL}${NC}"
 
 # 下载并检查 HTTP 状态码（显示进度条）
 HTTP_CODE=$(curl --progress-bar -w "%{http_code}" -o ${FRP_FILE} ${FRP_URL})
