@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# FRP Web Manager v1.8.2 - 一键部署脚本
+# FRP Web Manager v1.9.0 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
 # 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包 + 30 秒超时 + 防止 set -e 退出
 # 修复：本地压缩包解压后动态获取目录名 + systemd 服务文件改为脚本内生成
 # 修复：从 GitHub 下载 app.py 应用文件 + 权限设置 + 状态反馈
+# 新增：支持重新安装/覆盖安装（自动停止旧服务 + 解决 Text file busy）
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -285,6 +286,16 @@ print_step "安装系统依赖..."
 apt update -qq
 apt install -y -qq python3-pip python3-flask
 
+# 检查是否已安装（重新安装场景）
+if [ -f "$INSTALL_DIR/app.py" ] || systemctl is-active --quiet $SERVICE_NAME 2>/dev/null; then
+    print_warn "检测到已安装的 FRP Web Manager"
+    print_step "停止现有服务..."
+    systemctl stop $SERVICE_NAME 2>/dev/null || true
+    systemctl stop $FRPC_SERVICE 2>/dev/null || true
+    sleep 1
+    print_success "服务已停止"
+fi
+
 print_step "创建安装目录..."
 mkdir -p $INSTALL_DIR
 mkdir -p $FRP_DIR
@@ -366,6 +377,10 @@ else
 fi
 
 print_step "安装 frpc 到 ${FRP_DIR}..."
+# 确保 frpc 服务已停止（避免 Text file busy）
+systemctl stop $FRPC_SERVICE 2>/dev/null || true
+sleep 1
+
 if [ "$USE_LOCAL_FILE" = "yes" ]; then
     # 使用动态获取的目录名
     cp ${FRP_DIR_NAME}/frpc ${FRP_DIR}/
@@ -374,6 +389,7 @@ else
     cp frp_${FRP_VERSION}_linux_${FRP_ARCH}/frpc ${FRP_DIR}/
 fi
 chmod +x ${FRP_DIR}/frpc
+print_success "frpc 已安装"
 
 print_step "创建 frpc 配置文件..."
 cat > ${FRP_DIR}/frpc.toml << EOF
