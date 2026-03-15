@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# FRP Web Manager v1.6.2 - 一键部署脚本
+# FRP Web Manager v1.7.0 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
-# 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑
+# 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑 + 支持本地压缩包
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -131,14 +131,13 @@ echo -e "${YELLOW}🔄${NC} 正在获取 frp 最新版本..."
 LATEST_VERSION=$(get_latest_frp_version)
 print_success "当前最新版本：v${LATEST_VERSION}"
 
-# 验证最新版本是否可下载
+# 验证最新版本是否可下载（仅提示，不强制切换）
 echo -e "${YELLOW}🔍${NC} 验证版本 v${LATEST_VERSION} 可用性..."
 TEST_URL="https://github.com/fatedier/frp/releases/download/v${LATEST_VERSION}/frp_${LATEST_VERSION}_linux_${FRP_ARCH}.tar.gz"
 TEST_CODE=$(curl -sL -w "%{http_code}" -o /dev/null "${TEST_URL}")
 if [ "$TEST_CODE" != "200" ]; then
-    print_warn "最新版本 v${LATEST_VERSION} 下载失败 (HTTP ${TEST_CODE})，使用备用版本"
-    LATEST_VERSION="0.61.1"
-    print_success "已切换到稳定版本：v${LATEST_VERSION}"
+    print_warn "最新版本 v${LATEST_VERSION} 可能无法下载 (HTTP ${TEST_CODE})"
+    print_warn "你可以选择其他版本或使用本地已有的压缩包"
 fi
 
 echo ""
@@ -146,8 +145,9 @@ echo -e "${BOLD}📦 选择 frpc 版本：${NC}"
 echo -e "   ${GREEN}1)${NC} 最新版本 (v${LATEST_VERSION})"
 echo -e "   ${GREEN}2)${NC} 从最近 5 个版本中选择"
 echo -e "   ${GREEN}3)${NC} 自定义版本"
+echo -e "   ${GREEN}4)${NC} 使用本地已有的压缩包"
 echo ""
-input_prompt "请输入选项 (1/2/3，默认 1): "
+input_prompt "请输入选项 (1/2/3/4，默认 1): "
 read VERSION_CHOICE
 
 case $VERSION_CHOICE in
@@ -181,6 +181,29 @@ case $VERSION_CHOICE in
         input_prompt "请输入自定义版本号 (如：0.54.0): "
         read CUSTOM_VERSION
         FRP_VERSION="$CUSTOM_VERSION"
+        ;;
+    4)
+        echo ""
+        echo -e "${BOLD}📦 请使用本地 frp 压缩包：${NC}"
+        input_prompt "请输入压缩包完整路径 [/tmp/frp.tar.gz]: "
+        read LOCAL_FRP_PATH
+        LOCAL_FRP_PATH=${LOCAL_FRP_PATH:-"/tmp/frp.tar.gz"}
+        
+        # 验证文件是否存在
+        if [ ! -f "$LOCAL_FRP_PATH" ]; then
+            print_error "文件不存在：$LOCAL_FRP_PATH"
+            exit 1
+        fi
+        
+        # 验证文件类型
+        FILE_TYPE=$(file -b "$LOCAL_FRP_PATH" 2>/dev/null | head -c 20)
+        if ! echo "$FILE_TYPE" | grep -qi "gzip\|compress"; then
+            print_error "文件不是 gzip 格式 (检测到：${FILE_TYPE})"
+            exit 1
+        fi
+        
+        print_success "使用本地文件：$LOCAL_FRP_PATH"
+        USE_LOCAL_FILE="yes"
         ;;
     *)
         FRP_VERSION="$LATEST_VERSION"
@@ -261,45 +284,59 @@ mkdir -p $INSTALL_DIR
 mkdir -p $FRP_DIR
 cd $INSTALL_DIR
 
-print_step "下载 frp ${FRP_VERSION} (linux_${FRP_ARCH})..."
-cd /tmp
-FRP_FILE="frp_${FRP_VERSION}_linux_${FRP_ARCH}.tar.gz"
-FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/${FRP_FILE}"
-echo -e "${CYAN}  URL: ${FRP_URL}${NC}"
-
-# 下载并检查 HTTP 状态码（显示进度条）
-HTTP_CODE=$(curl --progress-bar -w "%{http_code}" -o ${FRP_FILE} ${FRP_URL})
-if [ "$HTTP_CODE" != "200" ]; then
-    print_error "下载失败 (HTTP ${HTTP_CODE})，版本号 v${FRP_VERSION} 可能不存在"
-    print_error "请检查版本号是否正确，或选择其他版本"
-    rm -f ${FRP_FILE}
-    exit 1
-fi
-
-# 验证文件大小
-FILE_SIZE=$(stat -c%s "${FRP_FILE}" 2>/dev/null || stat -f%z "${FRP_FILE}" 2>/dev/null)
-if [ "$FILE_SIZE" -lt 1000 ]; then
-    print_error "下载的文件过小 (${FILE_SIZE} 字节)，可能不是有效的压缩包"
-    print_error "请检查网络连接或版本号"
-    rm -f ${FRP_FILE}
-    exit 1
-fi
-
-# 验证文件类型（必须是 gzip）
-FILE_TYPE=$(file -b ${FRP_FILE} 2>/dev/null | head -c 20)
-if ! echo "$FILE_TYPE" | grep -qi "gzip\|compress"; then
-    print_error "下载的文件不是 gzip 格式 (检测到：${FILE_TYPE})"
-    print_error "可能是 GitHub 返回了错误页面"
-    rm -f ${FRP_FILE}
-    exit 1
-fi
-
-print_success "下载完成 (${FILE_SIZE} 字节)"
-
-if ! tar -xzf ${FRP_FILE}; then
-    print_error "解压失败，文件可能损坏"
-    rm -f ${FRP_FILE}
-    exit 1
+# 检查是否使用本地文件
+if [ "$USE_LOCAL_FILE" = "yes" ]; then
+    print_step "使用本地 frp 压缩包..."
+    cd /tmp
+    FRP_FILE="$LOCAL_FRP_PATH"
+    FILE_SIZE=$(stat -c%s "${FRP_FILE}" 2>/dev/null || stat -f%z "${FRP_FILE}" 2>/dev/null)
+    print_success "本地文件 (${FILE_SIZE} 字节)"
+    
+    if ! tar -xzf ${FRP_FILE}; then
+        print_error "解压失败，文件可能损坏"
+        exit 1
+    fi
+else
+    print_step "下载 frp ${FRP_VERSION} (linux_${FRP_ARCH})..."
+    cd /tmp
+    FRP_FILE="frp_${FRP_VERSION}_linux_${FRP_ARCH}.tar.gz"
+    FRP_URL="https://github.com/fatedier/frp/releases/download/v${FRP_VERSION}/${FRP_FILE}"
+    echo -e "${CYAN}  URL: ${FRP_URL}${NC}"
+    
+    # 下载并检查 HTTP 状态码（显示进度条）
+    HTTP_CODE=$(curl --progress-bar -w "%{http_code}" -o ${FRP_FILE} ${FRP_URL})
+    if [ "$HTTP_CODE" != "200" ]; then
+        print_error "下载失败 (HTTP ${HTTP_CODE})，版本号 v${FRP_VERSION} 可能不存在"
+        print_error "请检查版本号是否正确，或选择其他版本"
+        rm -f ${FRP_FILE}
+        exit 1
+    fi
+    
+    # 验证文件大小
+    FILE_SIZE=$(stat -c%s "${FRP_FILE}" 2>/dev/null || stat -f%z "${FRP_FILE}" 2>/dev/null)
+    if [ "$FILE_SIZE" -lt 1000 ]; then
+        print_error "下载的文件过小 (${FILE_SIZE} 字节)，可能不是有效的压缩包"
+        print_error "请检查网络连接或版本号"
+        rm -f ${FRP_FILE}
+        exit 1
+    fi
+    
+    # 验证文件类型（必须是 gzip）
+    FILE_TYPE=$(file -b ${FRP_FILE} 2>/dev/null | head -c 20)
+    if ! echo "$FILE_TYPE" | grep -qi "gzip\|compress"; then
+        print_error "下载的文件不是 gzip 格式 (检测到：${FILE_TYPE})"
+        print_error "可能是 GitHub 返回了错误页面"
+        rm -f ${FRP_FILE}
+        exit 1
+    fi
+    
+    print_success "下载完成 (${FILE_SIZE} 字节)"
+    
+    if ! tar -xzf ${FRP_FILE}; then
+        print_error "解压失败，文件可能损坏"
+        rm -f ${FRP_FILE}
+        exit 1
+    fi
 fi
 
 print_step "安装 frpc 到 ${FRP_DIR}..."
