@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# FRP Web Manager v1.6.1 - 一键部署脚本
+# FRP Web Manager v1.6.2 - 一键部署脚本
 # 功能：实时获取 frp 最新版本号 + 自动检测本机 IP + 下载验证 + 实时进度 + 版本可用性验证
-# 修复：frp 文件名规则 linux_arm64 (下划线)
+# 修复：frp 文件名规则 linux_arm64 (下划线) + 版本选择逻辑
 # 功能：美化安装界面 + 先配置后安装
 # 使用：sudo ./deploy.sh
 
@@ -154,7 +154,14 @@ case $VERSION_CHOICE in
     2)
         echo ""
         echo -e "${YELLOW}🔄${NC} 正在获取最近 5 个版本..."
-        VERSIONS=($(get_recent_frp_versions))
+        mapfile -t VERSIONS < <(get_recent_frp_versions)
+        
+        # 如果获取失败，使用默认版本列表
+        if [ ${#VERSIONS[@]} -eq 0 ]; then
+            print_warn "无法获取版本列表，使用默认版本"
+            VERSIONS=("0.61.1" "0.61.0" "0.60.0" "0.59.0" "0.58.0")
+        fi
+        
         echo -e "${BOLD}可选择的版本：${NC}"
         for i in "${!VERSIONS[@]}"; do
             echo -e "   ${GREEN}$((i+1)))${NC} v${VERSIONS[$i]}"
@@ -167,6 +174,7 @@ case $VERSION_CHOICE in
         else
             FRP_VERSION="${VERSIONS[$((VERSION_SELECT-1))]}"
         fi
+        print_success "已选择版本：v${FRP_VERSION}"
         ;;
     3)
         echo ""
