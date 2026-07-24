@@ -1,0 +1,25 @@
+# FRP Client 配置示例
+# 复制此文件为 /usr/local/frp/frpc.toml 并修改为你的实际配置
+
+serverAddr = "你的 FRP 服务器地址"
+serverPort = 你的服务器端口
+auth.token = "你的 Token"
+transport.tcpMux = true
+log.level = "info"
+log.maxDays = 3
+
+[[proxies]]
+name = "web-http"
+type = "tcp"
+localIP = "你的本地 IP"
+localPort = 你的本地端口
+remotePort = 你的远程端口
+
+[[proxies]]
+name = "web-manager"
+type = "tcp"
+localIP = "你的本地 IP"
+localPort = 8081
+remotePort = 8081
+
+# 根据需要添加更多代理...

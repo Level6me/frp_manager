@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>FRP Manager</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="header">
+    <h1>FRP Manager</h1>
+    <div style="display:flex;gap:10px;align-items:center">
+        <button class="add-btn" onclick="openAuthModal()" style="background:var(--apple-gray)">🔑 安全</button>
+        <a href="/logout" class="add-btn" style="background:var(--apple-red);text-decoration:none">🚪 登出</a>
+        <button class="refresh-btn" id="refreshBtn" onclick="refreshAll()" title="刷新">🔄</button>
+    </div>
+</div>
+<div class="container">
+
+    <!-- Tab 1: 服务监控与代理转发 -->
+    <div id="p-dash" class="page active">
+        <div class="card" id="statusCard">
+            <div class="card-header"><span class="card-title">服务状态</span></div>
+            <div class="status-section">
+                <div class="status-badge {{ sc }}" id="statusBadge"><span>{{ icon }}</span><span id="statusText">{{ st }}</span></div>
+                <div class="btn-group" id="btnGroup">
+                    {{ btn | safe }}
+                </div>
+            </div>
+        </div>
+
+        <!-- 实时数据看板与流量趋势图表 -->
+        <div class="card" id="metricsCard" style="display:none">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                <span class="card-title">📈 流量趋势与穿透监控</span>
+                <span id="metricStatusText" style="font-size:12px;color:var(--apple-green);font-weight:600">🟢 实时监控中</span>
+            </div>
+            
+            <!-- 流量趋势图表区 -->
+            <div style="padding:16px 16px 8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                    <div style="font-size:14px;font-weight:600;color:var(--apple-text)">流量趋势</div>
+                    <div style="display:flex;gap:16px;font-size:13px;font-weight:600">
+                        <span style="color:#007AFF">🔵 ↓ 下载 <span id="metricSpeedDown">0 B/s</span></span>
+                        <span style="color:#34C759">🟢 ↑ 上传 <span id="metricSpeedUp">0 B/s</span></span>
+                    </div>
+                </div>
+                <div style="position:relative;width:100%;height:180px;background:var(--apple-gray-bg, #f5f5f7);border-radius:12px;padding:8px">
+                    <canvas id="trafficChartCanvas" style="width:100%;height:100%;display:block"></canvas>
+                </div>
+            </div>
+
+            <!-- 累计流量与活动连接数统计区 -->
+            <div class="status-section" style="justify-content:space-around;gap:12px;padding:12px 16px 16px; flex-wrap:wrap">
+                <div style="text-align:center;padding:0 12px">
+                    <div id="metricTotalIn" style="font-size:18px;font-weight:700;color:var(--apple-text)">0 B</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">FRP 累计接收</div>
+                </div>
+                <div style="text-align:center;border-left:1px solid var(--apple-separator);padding:0 12px">
+                    <div id="metricTotalOut" style="font-size:18px;font-weight:700;color:var(--apple-text)">0 B</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">FRP 累计发送</div>
+                </div>
+                <div style="text-align:center;border-left:1px solid var(--apple-separator);padding:0 12px">
+                    <div id="metricConns" style="font-size:18px;font-weight:700;color:var(--apple-purple, #af52de)">0</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">活动连接数 🔗</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FRPS 服务端 Dashboard 集群全局看板 (方案二) -->
+        <div class="card" id="frpsMetricsCard" style="display:none;margin-top:16px">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                <span class="card-title">☁️ FRPS 服务端集群全局看板 (方案二)</span>
+                <span id="frpsStatusBadge" style="font-size:12px;color:var(--apple-green);font-weight:600">🟢 已连通</span>
+            </div>
+            <div class="status-section" style="justify-content:space-around;gap:12px;padding:16px;flex-wrap:wrap">
+                <div style="text-align:center;padding:0 12px">
+                    <div id="frpsVersion" style="font-size:16px;font-weight:700;color:var(--apple-text)">-</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">服务端版本</div>
+                </div>
+                <div style="text-align:center;border-left:1px solid var(--apple-separator);padding:0 12px">
+                    <div id="frpsClientCounts" style="font-size:18px;font-weight:700;color:var(--apple-blue)">0</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">在线客户端 💻</div>
+                </div>
+                <div style="text-align:center;border-left:1px solid var(--apple-separator);padding:0 12px">
+                    <div id="frpsTotalConns" style="font-size:18px;font-weight:700;color:var(--apple-purple)">0</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">服务端并发数 🔗</div>
+                </div>
+                <div style="text-align:center;border-left:1px solid var(--apple-separator);padding:0 12px">
+                    <div id="frpsTotalTrafficIn" style="font-size:16px;font-weight:700;color:var(--apple-text)">0 B</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">服务端总接收 ↓</div>
+                </div>
+                <div style="text-align:center;border-left:1px solid var(--apple-separator);padding:0 12px">
+                    <div id="frpsTotalTrafficOut" style="font-size:16px;font-weight:700;color:var(--apple-text)">0 B</div>
+                    <div style="font-size:12px;color:var(--apple-text-secondary);font-weight:500;margin-top:2px">服务端总发送 ↑</div>
+                </div>
+            </div>
+            <div style="padding:0 16px 16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:12px;color:var(--apple-text-secondary)" id="frpsProxyTypesTag">
+            </div>
+            <!-- FRPS 服务端注册隧道明细展示 -->
+            <div id="frpsProxyDetailsContainer" style="padding:0 16px 16px;display:none;border-top:1px dashed var(--apple-separator);margin-top:8px;padding-top:12px">
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--apple-text)">🌐 服务端活跃代理隧道明细:</div>
+                <div style="overflow-x:auto">
+                    <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--apple-separator);color:var(--apple-text-secondary)">
+                                <th style="padding:6px 8px">代理名</th>
+                                <th style="padding:6px 8px">类型</th>
+                                <th style="padding:6px 8px">监听端口/地址</th>
+                                <th style="padding:6px 8px">状态</th>
+                                <th style="padding:6px 8px">连接数</th>
+                                <th style="padding:6px 8px">流量 (入 / 出)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="frpsProxiesTbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="proxyCard">
+            <div class="card-header">
+                <span class="card-title">转发配置</span>
+                <button class="add-btn" onclick="addProxy()">➕ 添加</button>
+            </div>
+            <div class="proxy-list" id="proxyList">{{ proxy_rows | safe }}</div>
+        </div>
+
+        <div class="card" id="logsCard">
+            <div class="card-header"><span class="card-title">运行日志</span></div>
+            <div class="logs"><pre id="logsContent">{{ logs }}</pre></div>
+        </div>
+    </div>
+
+    <!-- Tab 2: 方案管理与配置文件切换 (方案2) -->
+    <div id="p-config" class="page">
+        <div class="card" id="configCard">
+            <div class="card-header">
+                <span class="card-title">多配置文件与方案管理</span>
+                <button class="add-btn" onclick="addConfig()" style="background:var(--apple-blue)">➕ 新建方案</button>
+            </div>
+            <div class="proxy-list" id="configList">
+                <!-- 动态加载配置文件列表 -->
+            </div>
+        </div>
+
+        <div class="card" style="padding:18px; background:var(--apple-card)">
+            <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--apple-blue)">💡 方案2 多场景配置切换说明</div>
+            <div style="font-size:13px; color:var(--apple-text-secondary); line-height:1.6">
+                通过方案管理，您可以为不同的工作环境（例如：办公室穿透、家庭NAS穿透、云开发环境）独立保存全套 FRP 配置文件。<br>
+                点击切换按钮即可快速激活对应方案，系统将以零中断无缝软链接方式挂载并应用规则。
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: 服务器主配置 -->
+    <div id="p-server" class="page">
+        <div class="card">
+            <div class="card-header"><span class="card-title">服务器主配置</span></div>
+            <div class="form-section">
+                <form method="post" action="/save" onsubmit="const b=this.querySelector('button[type=submit]'); setTimeout(() => { b.textContent='保存并重启中...'; b.disabled=true; }, 0);">
+                    <div class="form-grid">
+                        <div class="form-group"><label>服务器地址</label><input name="sa" value="{{ cfg['sa'] }}"></div>
+                        <div class="form-group"><label>服务器端口</label><input name="sp" type="number" value="{{ cfg['sp'] }}"></div>
+                        <div class="form-group"><label>Token</label><input name="tk" value="{{ cfg['tk'] }}"></div>
+                        <div class="form-group"><label>本地 IP</label><input name="li" value="{{ cfg['li'] }}"></div>
+                        <div class="form-group"><label>本地端口</label><input name="lp" type="number" value="{{ cfg['lp'] }}"></div>
+                        <div class="form-group"><label>远程端口</label><input name="rp" type="number" value="{{ cfg['rp'] }}"></div>
+                    </div>
+                    <div style="margin-top:18px"><button type="submit" class="btn btn-primary btn-sm" style="width:100%">保存配置</button></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- FRPS 服务端 Dashboard 对接配置 (方案二) -->
+        <div class="card" style="margin-top:16px">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+                <span class="card-title">☁️ FRPS 服务端 Dashboard 对接 (方案二)</span>
+                <span style="font-size:12px;color:var(--apple-blue);font-weight:600">管理后台 API 实时同步</span>
+            </div>
+            <div class="form-section">
+                <form id="frpsConfigForm" onsubmit="saveFrpsConfig(event)">
+                    <div class="form-grid">
+                        <div class="form-group" style="grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center;padding:4px 0">
+                            <label style="font-size:14px;color:var(--apple-text);font-weight:600">启用 FRPS Dashboard API 对接</label>
+                            <input type="checkbox" id="frpsDashEnabled" style="width:20px;height:20px;cursor:pointer">
+                        </div>
+                        <div class="form-group"><label>服务端 IP / 域名</label><input type="text" id="frpsDashAddr" placeholder="如：43.108.18.47"></div>
+                        <div class="form-group"><label>Dashboard 端口</label><input type="number" id="frpsDashPort" value="7500"></div>
+                        <div class="form-group"><label>Dashboard 账号</label><input type="text" id="frpsDashUser" placeholder="默认 admin"></div>
+                        <div class="form-group"><label>Dashboard 密码</label><input type="password" id="frpsDashPassword" placeholder="默认 admin"></div>
+                    </div>
+                    <div style="margin-top:18px;display:flex;gap:10px">
+                        <button type="button" class="btn btn-secondary btn-sm" style="flex:1" id="btnTestFrpsConfig" onclick="testFrpsConfig()">🔍 测试服务端连接</button>
+                        <button type="submit" class="btn btn-primary btn-sm" style="flex:1" id="btnSaveFrpsConfig">💾 保存 Dashboard 配置</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 底部悬浮 Dock 导航栏 -->
+<div class="dock">
+    <button class="dock-btn active" id="dock-btn-dash" onclick="nav('dash', this)">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        <span>监控看板</span>
+    </button>
+    <button class="dock-btn" id="dock-btn-config" onclick="nav('config', this)">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        <span>方案管理</span>
+    </button>
+    <button class="dock-btn" id="dock-btn-server" onclick="nav('server', this)">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        <span>主配置</span>
+    </button>
+</div>
+
+<!-- Auth Modal -->
+<div class="modal" id="authModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>安全设置 (修改凭证)</h3>
+            <button class="close-btn" onclick="closeAuthModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="authForm" onsubmit="saveAuth(event)">
+                <div class="form-grid">
+                    <div class="form-group"><label>新用户名</label><input type="text" id="aUser" required autocomplete="username"></div>
+                    <div class="form-group"><label>新密码</label><input type="password" id="aPass" required autocomplete="new-password"></div>
+                    <div class="form-group" style="flex-direction:row;justify-content:space-between;align-items:center;margin-top:10px">
+                        <label style="font-size:15px;color:var(--apple-text);font-weight:600">启用密码认证</label>
+                        <input type="checkbox" id="aEnabled" onchange="toggleAuthInputs()" style="width:20px;height:20px;cursor:pointer">
+                    </div>
+                </div>
+                <div style="margin-top:20px;display:flex;gap:10px">
+                    <button type="submit" class="btn btn-primary" style="flex:1">保存</button>
+                    <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeAuthModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Config Modal -->
+<div class="modal" id="configModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>新建配置文件</h3>
+            <button class="close-btn" onclick="closeConfigModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="configForm" onsubmit="saveConfig(event)">
+                <div class="form-grid">
+                    <div class="form-group"><label>文件名称</label><input type="text" id="cName" required placeholder="如：test.toml" autocomplete="off"></div>
+                </div>
+                <div style="margin-top:20px;display:flex;gap:10px">
+                    <button type="submit" class="btn btn-primary" style="flex:1">创建</button>
+                    <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeConfigModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Proxy Modal -->
+<div class="modal" id="proxyModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">编辑代理</h3>
+            <button class="close-btn" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="proxyForm" onsubmit="saveProxy(event)">
+                <input type="hidden" id="proxyIndex" value="-1">
+                <div class="form-grid">
+                    <div class="form-group"><label>名称</label><input type="text" id="pName" required placeholder="如：web-http"></div>
+                    <div class="form-group"><label>类型</label><select id="pType" onchange="toggleAuthFields()"><option value="tcp">TCP</option><option value="udp">UDP</option><option value="http">HTTP</option><option value="https">HTTPS</option></select></div>
+                    <div class="form-group"><label>本地 IP</label><input type="text" id="pLocalIP" value="127.0.0.1" required></div>
+                    <div class="form-group"><label>本地端口</label><input type="number" id="pLocalPort" required placeholder="如：80"></div>
+                    <div class="form-group"><label>远程端口</label><input type="number" id="pRemotePort" required placeholder="如：8080"></div>
+                    <div id="authFields" style="display:none;border-top:1px solid var(--apple-separator);padding-top:16px;margin-top:8px">
+                        <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                            <span style="font-size:13px;font-weight:600;color:var(--apple-text-secondary)">🔐 HTTP/HTTPS 配置</span>
+                        </div>
+                        <div class="form-group"><label>绑定域名</label><input type="text" id="pCustomDomain" placeholder="如：web.example.com（留空自动生成）"></div>
+                        <div class="form-group"><label>用户名</label><input type="text" id="pHttpUser" placeholder="留空则禁用认证"></div>
+                        <div class="form-group"><label>密码</label><input type="text" id="pHttpPassword" placeholder="留空则禁用认证"></div>
+                    </div>
+                </div>
+                <div style="margin-top:20px;display:flex;gap:10px">
+                    <button type="submit" class="btn btn-primary" style="flex:1">保存</button>
+                    <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 全局变量注入 -->
+<script>
+    const proxies = {{ proxies_json | safe }};
+    const authConfig = {{ auth_config_json | safe }};
+    const frpsConfig = {{ frps_config_json | safe }};
+</script>
+<script src="/static/js/main.js?v=8"></script>
+</body>
+</html>
